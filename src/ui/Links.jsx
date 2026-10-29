@@ -17,7 +17,7 @@ export default function Links() {
                     <path d={icons.twitter} />
                 </svg>
             </a>
-            <a href="https://github.com/sosuhenk" target="_blank" rel="noopener noreferrer" className="link-item">
+            <a href="https://github.com/joseisaaccmd" target="_blank" rel="noopener noreferrer" className="link-item">
                 <svg viewBox="0 0 24 24" fill="currentColor">
                     <path d={icons.github} />
                 </svg>
