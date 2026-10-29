@@ -12,11 +12,6 @@ export default function Links() {
 
     return (
         <div className="links">
-            <a href="https://www.linkedin.com/in/made-ray-joseph-hendrawan" target="_blank" rel="noopener noreferrer" className="link-item">
-                <svg viewBox="0 0 24 24" fill="currentColor">
-                    <path d={icons.linkedin} />
-                </svg>
-            </a>
             <a href="https://x.com/ray_joseph68599" target="_blank" rel="noopener noreferrer" className="link-item">
                 <svg viewBox="0 0 24 24" fill="currentColor">
                     <path d={icons.twitter} />
