@@ -1,0 +1,32 @@
+import './Links.css'
+import { icons } from './icons.js'
+import usePhases, { PHASES } from '../stores/usePhases.jsx'
+
+export default function Links() {
+    const phase = usePhases((state) => state.phase)
+    // Reveal on the same cue as the sound HUD: from GO onward (the GO press leaves warmup for intro).
+    // Hidden on the loading + GO/warmup screens and behind the restart curtain, so they don't sit
+    // over the loader.
+    const show = phase !== PHASES.loading && phase !== PHASES.warmup && phase !== PHASES.resettling
+    if (!show) return null
+
+    return (
+        <div className="links">
+            <a href="https://www.linkedin.com/in/made-ray-joseph-hendrawan" target="_blank" rel="noopener noreferrer" className="link-item">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d={icons.linkedin} />
+                </svg>
+            </a>
+            <a href="https://x.com/ray_joseph68599" target="_blank" rel="noopener noreferrer" className="link-item">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d={icons.twitter} />
+                </svg>
+            </a>
+            <a href="https://github.com/sosuhenk" target="_blank" rel="noopener noreferrer" className="link-item">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d={icons.github} />
+                </svg>
+            </a>
+        </div>
+    )
+}

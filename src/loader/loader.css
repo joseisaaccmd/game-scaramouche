@@ -1,0 +1,198 @@
+.loader-wrapper {
+    position: fixed;
+    inset: 0;
+    background: var(--sj-loader-background);
+    z-index: 10000;
+    display: grid;
+    place-items: center;
+    font-family: 'Bebas Neue', sans-serif;
+    /* The wrapper background fades FIRST (reveals the 3D scene), before the red disc — see loader-center.
+       (sceneReady already holds the loader up until the hero has actually drawn, so no time-delay needed.) */
+    transition: background-color 0.18s ease;
+}
+
+.loader-wrapper--exit {
+    background: transparent;
+    pointer-events: none;
+}
+
+/* Warmup (GO): drop the flat 2D background and the red centre disc so the live 3D scene
+   shows through — the GO text then floats over the real top-down hero, framed by the ring. */
+.loader-wrapper--warmup {
+    background: transparent;
+}
+
+/* Restart curtain ('resettling'): the full-screen loading cover fades back in to mask the
+   instant snap of the scene to its origin, before warmup lifts it again and GO fades in. */
+.loader-wrapper--settle {
+    animation: loader-settle-in 0.5s ease forwards;
+}
+
+@keyframes loader-settle-in {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+.loader-wrapper--warmup .loader-center {
+    background-color: transparent;
+}
+
+.loader-container {
+    position: relative;
+    display: grid;
+    place-items: center;
+}
+
+.loader-ring {
+    width: var(--sj-loader-size, 200px);
+    height: var(--sj-loader-size, 200px);
+    border-radius: 50%;
+    box-sizing: border-box;
+    position: relative;
+    z-index: 2;
+    pointer-events: none;
+    opacity: 1;
+    transition: opacity 0.5s ease;
+    -webkit-mask: radial-gradient(
+        farthest-side,
+        transparent calc(100% - var(--sj-loader-ring-width, 12px)),
+        #000 calc(100% - var(--sj-loader-ring-edge, 11px))
+    );
+    mask: radial-gradient(
+        farthest-side,
+        transparent calc(100% - var(--sj-loader-ring-width, 12px)),
+        #000 calc(100% - var(--sj-loader-ring-edge, 11px))
+    );
+}
+
+.loader-ring-inner {
+    display: none;
+}
+
+/* Rounded end-caps for the progress arc — dots (⌀ = --sj-loader-ring-edge, i.e. the ring width minus its
+   ~1px feathered inner edge, so the cap sits flush and doesn't read thicker) centred on the ring
+   centreline; the inline transform (Loader.jsx) rotates each to the arc's start / current-end angle. */
+.loader-ring-cap {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: var(--sj-loader-ring-edge, 11px);
+    height: var(--sj-loader-ring-edge, 11px);
+    margin: calc(-0.5 * var(--sj-loader-ring-edge, 11px));
+    border-radius: 50%;
+    background-color: var(--sj-ui-primary);
+    transform-origin: center;
+    z-index: 3;
+    pointer-events: none;
+}
+
+.loader-center {
+    position: absolute;
+    display: grid;
+    place-items: center;
+    width: var(--sj-loader-size, 200px);
+    height: var(--sj-loader-size, 200px);
+    border-radius: 50%;
+    background-color: var(--sj-loader-hero);
+    /* The red disc fades AFTER the wrapper background (delay = the wrapper's fade duration), so the disc
+       lingers over the centre until the scene is already revealed behind it — never exposing the dark
+       wrapper background where the hero should be (that gap was the blink). */
+    transition: opacity 0.18s ease, background-color 0.16s ease 0.18s;
+    z-index: 1;
+}
+
+.loader-wrapper--exit .loader-center {
+    opacity: 0;
+    background-color: transparent;
+}
+
+/* GO pressed: the whole bar simply fades to transparent (smooth, no scale/particles). */
+.loader-wrapper--exit .loader-ring {
+    opacity: 0;
+}
+
+.loader-center--clickable {
+    cursor: pointer;
+}
+
+.loader-percent {
+    font-size: var(--sj-loader-percent-size, 48px);
+    color: var(--sj-ui-primary);
+    font-family: 'Bebas Neue', sans-serif;
+    font-weight: 100;
+    letter-spacing: 0.1em;
+    font-stretch: condensed;
+    user-select: none;
+}
+
+/* GO cue: the target-arrow silhouette in the ring centre (same slot the percent number used). Same
+   UI-primary colour as the ring (a DOM element, so no colour-grade tint). Points UP at rest and eases
+   a 180° turn to point DOWN while the circle is hovered — a "look here → go" nudge. */
+.loader-go-arrow {
+    width: calc(0.34 * var(--sj-loader-size, 200px));
+    height: calc(0.34 * var(--sj-loader-size, 200px));
+    color: var(--sj-ui-primary);
+    transform: rotate(0deg);
+    /* `translate` is separate from `transform` (and applies in the PARENT's space, after the
+       rotation) so the press-dip below always moves visually DOWN, whichever way the arrow points. */
+    translate: 0 0;
+    transition: transform 0.45s cubic-bezier(0.4, 0, 0.2, 1), translate 0.12s ease;
+    will-change: transform;
+    user-select: none;
+    /* Fade in when the bar completes (100% → GO) — the animation only touches opacity, so it never
+       fights the rotate/dip transitions above. */
+    animation: loader-arrow-in 0.6s ease both;
+}
+
+@keyframes loader-arrow-in {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+.loader-center:hover .loader-go-arrow {
+    transform: rotate(180deg);
+}
+
+/* Touch experience: there is no hover, so the arrow points DOWN (the "press here" state) from the
+   moment it appears — the tap then plays only the press dip + the fade-out, like desktop's click. */
+@media (pointer: coarse) {
+    .loader-go-arrow {
+        transform: rotate(180deg);
+    }
+}
+
+/* Press feedback: the arrow dips down while the pointer is held, like a real button being pushed. */
+.loader-center--clickable:active .loader-go-arrow {
+    translate: 0 calc(0.025 * var(--sj-loader-size, 200px));
+}
+
+/* GO pressed (exit fade): the wrapper turns pointer-events off, which drops :hover — without this
+   pin the arrow would visibly start turning back UP while fading out. Keep it pointing down
+   (touch already rests at 180°, so there it just fades in place). */
+.loader-wrapper--exit .loader-go-arrow {
+    transform: rotate(180deg);
+}
+
+/* Gentle "better with headphones" hint, low on the loading / GO screen. */
+.loader-headphones {
+    position: absolute;
+    left: 50%;
+    bottom: 9%;
+    transform: translateX(-50%);
+    color: var(--sj-ui-primary);
+    font-family: 'Bebas Neue', Impact, sans-serif;
+    font-size: calc(1.7 * var(--ui-vmin) * var(--ui-scale));
+    letter-spacing: 0.14em;
+    opacity: 0.72;
+    white-space: nowrap;
+    pointer-events: none;
+    user-select: none;
+}

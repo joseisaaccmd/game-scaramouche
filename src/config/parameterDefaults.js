@@ -1,0 +1,476 @@
+// Single home for the tweakable GLOBAL parameter defaults (the `DEFAULT_*` groups) + their HMR
+// version constants. useStore.jsx imports these and only wires them into the store + the hot-reload
+// merge — so when you want to change a default value, you change it HERE.
+//
+// The split with sceneStyles.js: this file holds GLOBAL FEATURE parameters (one set, always in
+// effect — camera, audio, the mini-game, mobile tuning). sceneStyles.js holds the painterly LOOK
+// preset — terrain/grass/objects/background/etc. — the things a colour theme repaints.
+//
+// Two places cross that line, deliberately:
+// - DEFAULT_GAME_UI_PARAMETERS (bottom of this file) is defined in sceneStyles.js and only
+//   re-exported here, because the UI skin is part of the look but is seeded like a global group.
+// - Colour themes (config/colorPresets.js) write into BOTH sides when a theme is applied.
+import { defaultSceneStyle } from './sceneStyles.js'
+import { characterStylizedDefaults } from './stylizedMaterialDefaults.js'
+import { sheepCharacterDefaults } from './sheepMaterials.js'
+
+// { piano: { orange:{baseColor}, white:{baseColor}, brown:{baseColor} }, drums:{…}, winds:{…} }
+export function cloneSheepCharacters() {
+    return Object.fromEntries(
+        Object.entries(sheepCharacterDefaults).map(([music, mats]) => [
+            music,
+            Object.fromEntries(Object.entries(mats).map(([id, color]) => [id, { baseColor: color }])),
+        ])
+    )
+}
+
+/**
+ * Versions
+ */
+
+// HMR version gates — bump the matching one when its defaults change so a dev hot-reload
+// force-applies them instead of keeping the preserved runtime values (which would otherwise mask
+// the new defaults). See the merge block in useStore.jsx.
+export const GRASS_STYLE_VERSION = 20
+export const CHARACTER_STYLIZED_VERSION = 4
+// Bump when objectParameters / edgeParameters / propRimParameters defaults change.
+export const OBJECT_STYLE_VERSION = 9
+export const LOADER_DEBUG_VERSION = 6
+export const GAME_UI_VERSION = 18
+
+/**
+ * Camera
+ */
+
+export const DEFAULT_CAMERA_PARAMETERS = {
+    debugOrbit: false,
+    debugOrbitAngle: 0,
+    debugOrbitDistance: 18.9,
+    debugOrbitHeight: 15.1,
+    debugTargetYOffset: 0.4,
+    // Gameplay "walking" follow offset behind + above the hero. The intro→gameplay hand-off orbit
+    // (CAMERA_FOLLOW_ORBIT) is driven off these too, so they stay matched.
+    followDistance: 14.6,
+    followHeight: 11.4,
+    // The intro dialogue shot (CAMERA_FRONT_SHOT) where the intro travel lands + holds for the
+    // opening speech.
+    frontDistance: 14.2,
+    frontHeight: 4.3,
+}
+
+/**
+ * Display grade
+ */
+
+// Two display color-grade presets, applied in the final post pass (SharpenPass) and switched by
+// highBrightnessMode (also the in-game ☀/☾ toggle). HIGH = the normal-brightness-display look: a
+// desaturate + warm that counters the too-blue / too-saturated cast the scene takes on there. LOW =
+// a gentler eye-comfort look (further desaturated + warmer + slightly brightened). Identity (no
+// grade) = sat 1 / warmth 0 / bright 1.
+export const DEFAULT_COLOR_GRADE_PARAMETERS = {
+    highBrightnessMode: true, // default = HIGH (normal-brightness display); toggle to LOW for the eye-safety look
+    lowSaturation: 0.51,
+    lowWarmth: 0.3,
+    lowBrightness: 1.2,
+    highSaturation: 0.88, // tuned on a normal display
+    highWarmth: 0.25,
+    highBrightness: 1.0,
+}
+
+/**
+ * Loader
+ */
+
+// Defined in loaderShellDefaults.js and re-exported here, so the entry chunk can import them
+// without pulling this whole catalogue in. This stays their import site for the rest of the app.
+export { DEFAULT_LOADER_DEBUG_PARAMETERS, DEFAULT_MOBILE_UI_PARAMETERS } from './loaderShellDefaults.js'
+
+/**
+ * Theme
+ */
+
+// Which named colour preset each group is currently on. Presets live in config/colorPresets.js;
+// applying a theme writes its colours into the real param groups and records the names here. Only
+// `theme` is bound to a Leva dropdown (the Colors folder) — grass/stones/trees are bookkeeping,
+// a record of which per-group palette a theme reused.
+export const DEFAULT_COLOR_PRESET_PARAMETERS = {
+    theme: 'Night Forest',
+    grass: 'Violet Night',
+    stones: 'Periwinkle',
+    trees: 'Indigo Canopy',
+}
+
+// How the day/night switch (and the Leva theme dropdown) transitions between themes: the PORTAL —
+// a torn-edged circle grows from the screen centre revealing the new look inside, while the world
+// keeps moving on both sides of the edge.
+export const DEFAULT_THEME_TRANSITION_PARAMETERS = {
+    duration: 3.0, // seconds
+    // Progress curve. 'Fast start' responds the instant you click and eases out at the end;
+    // 'Slow start' is the cinematic ramp-up (feels laggy on click); 'Smooth' is between.
+    easing: 'Fast start', // 'Fast start' | 'Smooth' | 'Slow start' | 'Linear'
+    // The Portal edge is a THRESHOLD against a noise field (exactly the ground border's paintery
+    // fade): within `band` around the front, pixels flip old→new where the local noise beats the
+    // progression — a hard cutout, no soft blend across the threshold.
+    edgeStyle: 'Paintery', // 'Paintery' (the brush texture) | 'Perlin' (procedural noise)
+    band: 0.8, // width of the torn transition band (screen fraction) — wide = the whole sweep is brush-eaten
+    textureScale: 0.65, // Paintery style: brush tiling in screen space (small = big strokes)
+    perlinScale: 6.5, // Perlin style: noise frequency
+    perlinDetail: 1, // Perlin style: octaves (1 = soft blobs → 5 = crunchy)
+    // (Grass + prop colours are shader uniforms — every theme value crossfades per frame, and no
+    // mode triggers an instance rebuild.)
+}
+
+/**
+ * Mobile
+ */
+
+// Mobile-only camera distances (isMobile → resolvedCameraDistances). Same fields as the desktop
+// Camera Distance controls but tuned for the phone framing; applied only when the mobile experience
+// is active (touch / coarse-pointer device — Chrome device mode flips it live, see config/device.js).
+export const DEFAULT_MOBILE_CAMERA_PARAMETERS = {
+    followDistance: 17.4, // gameplay walk
+    followHeight: 13.7,
+    frontDistance: 19.2, // intro dialogue
+    frontHeight: 4.6,
+    cameraDistance: 24, // mini-game stone view
+    cameraHeight: 5.2,
+    dialogueCameraDistance: 10, // music-character talk
+    dialogueCameraHeight: 6.2,
+}
+
+// (DEFAULT_MOBILE_UI_PARAMETERS lives in loaderShellDefaults.js — re-exported under "Loader" above,
+// because the loading ring reads it and the entry chunk must not import this file.)
+
+// Mobile mini-game stone layout — landscape: a horizontal LINE (not the desktop rainbow arc) with
+// the guide arrow rising from below; portrait ("lazy" hold): a 2-COLUMN grid (3 rows for 6 stones,
+// an odd last stone centred) with the arrow pointing at the target stone from its outer side.
+export const DEFAULT_MOBILE_STONE_PARAMETERS = {
+    lineWidth: 5.8, // landscape: half-width of the line (stones span -lineWidth … +lineWidth)
+    lineHeight: 1.8, // height of the line / the grid's BOTTOM row (above yOffset + hoverHeight)
+    scale: 0.55, // stone size on mobile (bigger = easier tap target)
+    arrowDrop: 1.75, // arrow gap: below the stone (landscape line) / beside it (portrait grid)
+    colGap: 1.9, // portrait: half-distance between the two grid columns
+    rowGap: 2.7, // portrait: vertical distance between grid rows
+    gridHeight: 2.9, // portrait: vertical CENTRE of the grid (above yOffset + hoverHeight)
+    gridScale: 0.71, // portrait: stone size (own value so the grid can differ from the landscape line)
+}
+
+// On-screen mobile joystick (Joystick.jsx) — replaces the keyboard arrows / on-screen d-pad on the
+// mobile experience (isMobile). Drives the hero's move direction (analog angle, full walk speed;
+// edge push = run).
+export const DEFAULT_JOYSTICK_PARAMETERS = {
+    size: 130, // base diameter (px)
+    knobSize: 58, // knob diameter (px)
+    marginX: 48, // LANDSCAPE: px from the chosen side edge (portrait is bottom-centre, no X margin)
+    marginY: 28, // LANDSCAPE: px from the bottom edge (the corner placement sits low)
+    marginYPortrait: 70, // PORTRAIT: px from the bottom edge (raised under the resting thumb)
+    side: 'left', // 'left' | 'right' — which corner it sits in
+    opacity: 0.25, // base + knob opacity (both orientations)
+    deadzone: 0.16, // fraction of the radius ignored before the hero moves (0..1)
+    // Push magnitude (0..1) past which the hero RUNS (RUN_SPEED 5.5) instead of walks (WALK_SPEED 4.0).
+    // >1 disables run so the joystick caps at walk speed = the keyboard/d-pad max (they were unequal:
+    // edge-push ran at 5.5 while the mobile controls only walk). Lower it (e.g. 0.9) to re-enable run.
+    runThreshold: 1.01,
+    baseColor: '#fff8ff',
+    knobColor: '#fff8ff',
+}
+
+/**
+ * Lantern
+ */
+
+// Lantern fire + glow: a flickering flame placed in the hollow middle of the lantern (whose
+// origin sits at the TOP) and a semi-transparent, paintery-edged glow circle around it. Both
+// follow the lantern's world position (state.lanternPosition). All offsets/sizes are tunable
+// since they depend on the exact lantern mesh dimensions.
+export const DEFAULT_LANTERN_FIRE_PARAMETERS = {
+    enabled: true,
+    fireBoneOffset: 0.08, // nudge the flame up the lantern→flame bone axis (only used with the flame bone)
+    fireSize: 0.13,
+    fireColorCore: '#ffe6a8', // hot inner flame
+    fireColorEdge: '#ff6a16', // outer flame
+    flickerSpeed: 7.3,
+    flickerAmount: 0.18,
+    // Glow — a semi-transparent paintery-edged circle (sharp dithered edge like the ground
+    // border). Has its OWN local offset, independent of the fire, so the halo can sit apart.
+    glowOffsetX: 0,
+    glowOffsetY: -0.43,
+    glowOffsetZ: 0,
+    glowSize: 2.63,
+    glowColor: '#ff8f4d',
+    glowOpacity: 0.23,
+    glowRadius: 0.76, // circle radius within the plane (0..1)
+    glowBleed: 0.0, // softness of the paintery edge
+    glowTextureScale: 0.03, // paintery brush tiling
+    glowFront: 0.0, // push toward the camera so it draws over the lantern + stick
+}
+
+// Lantern grass interaction: a character-like reaction (scale + alpha + colour, NO lean) in the
+// grass around the lantern's world position — like a soft clearing under the held light.
+export const DEFAULT_LANTERN_GRASS_PARAMETERS = {
+    enabled: true,
+    radius: 1.7, // world units around the lantern
+    softness: 1.8, // fade band toward the edge
+    scale: 0.69, // how much the grass shortens (0..1)
+    alpha: 1.0, // how much the grass fades out (0..1)
+    color: '#ffd9a0', // tint toward this colour
+    colorAmount: 0.81, // how strongly to tint (0..1)
+}
+
+/**
+ * Intro travel and target arrow
+ */
+
+// Intro camera travel (GameDirector): a descending 360° spiral down to the hero. Fully
+// tunable + replayable via the "Intro Camera" Leva folder ("redo the animation").
+export const DEFAULT_INTRO_CAMERA_PARAMETERS = {
+    spiralDuration: 4.55, // seconds of the descending 360° spiral down to the hero
+    orbitDistance: 14, // peak camera radius mid-spiral (swells out, then pulls in)
+}
+
+// A single arrow (arrow.glb, forward = local -X, origin behind it) floating in front of the
+// hero toward the hidden companion at ANY distance (TargetArrow). Once close it travels high
+// above the companion, points down and spins; when the mini-game starts it scales away.
+export const DEFAULT_ARROW_PARAMETERS = {
+    distance: 2.6, // how far in front of the hero the arrow floats (far state)
+    yOffset: 2.0, // float height above the ground (far state)
+    scale: 0.4, // arrow model scale
+    modelYaw: 90, // deg — aligns the model's -X "forward" with the target direction
+    closeRadius: 6, // distance at which the arrow starts travelling above the companion
+    closeBand: 3, // transition width (overhead complete at closeRadius - closeBand)
+    overheadHeight: 4, // how high above the companion the arrow hovers + spins
+    spinSpeed: 1.6, // overhead spin speed
+    floatAmount: 0.25, // bob amplitude
+    floatSpeed: 2.0, // bob speed
+    color: '#ffffff',
+}
+
+// Song mini-game: the "press E" interaction radius + the floating head-notes (CompanionNotes).
+// The mini-game proper is the 3D music stones (musicStoneParameters below); the backing audio
+// lives in audio/musicTracks.js.
+/**
+ * Melody mini-game
+ */
+
+export const DEFAULT_SONG_GAME_PARAMETERS = {
+    interactRadius: 4.0, // distance (world units) to a companion at which the "press E" prompt appears
+    // Floating notes above a singing head — now the 3D models from notes.glb (CompanionNotes).
+    noteDuration: 1.75, // seconds each note lives
+    noteGrow: 1.45, // final scale multiplier before it fades
+    noteScale: 0.19, // base world size of a note
+    noteRiseWorld: 1.45, // world units it floats upward over its life
+    noteWobbleWorld: 0.77, // world units of side-to-side sway + initial spread
+    // 3D feedback above the character head (CharacterFeedback): heart.glb on a correct press,
+    // mark.glb (rocking) on a miss. Models are authored large, so these scales are small.
+    heartScale: 0.15,
+    markScale: 0.15,
+}
+
+// 3D music stones (song mini-game): six coloured stones that rise around the companion, flash
+// on each played note, and are clicked to repeat the song.
+export const DEFAULT_MUSIC_STONE_PARAMETERS = {
+    color0: '#e85c5c',
+    color1: '#ef9f43',
+    color2: '#f2d24b',
+    color3: '#5fc46a',
+    color4: '#46c2c9',
+    color5: '#5b8def',
+    radius: 3.6, // rainbow radius (half-width + rise) above the companion's head
+    scale: 0.55, // normal stone scale (matches the ordinary stoneSize)
+    yOffset: 1.25, // base height offset (added on top of hoverHeight)
+    hoverHeight: 2.0, // height of the rainbow's low ends above the ground
+    bobAmount: 0.07, // gentle vertical bob amplitude (when floatRotate is off)
+    bobSpeed: 0.95, // bob / wobble speed
+    floatRotate: true, // float in place (gentle rotation wobble) instead of a vertical bob
+    floatRotateAmount: 0.17, // wobble amplitude in radians when floatRotate is on
+    flashBoost: 1.4, // brightness multiplier when a note hits the stone (sing / click)
+    hoverBoost: 0.35, // slight brighten while a clickable stone is hovered
+    hoverScale: 0.18, // extra scale-up while a clickable stone is hovered (on top of brighten)
+    hoverProxyRadius: 1.8, // world radius of the invisible hover/click proxy around each stone
+    flashDuration: 0.32, // seconds the flash decays over
+    listenTempo: 1.6, // playback speed multiplier when hearing the song (>1 = slower)
+    notePlayDuration: 0.9, // base seconds each note plays before the next during the melody (× listenTempo)
+    roundClearPause: 1.1, // seconds the "Nice!" banner holds before the next round's countdown
+    countdownFrom: 3, // 3·2·1 — how many counts before each round's playback
+    countdownStep: 0.7, // seconds per countdown tick
+    staggerDelay: 0.12, // delay between each stone's scale-in (left→right)
+    scaleInDuration: 0.5, // seconds for one stone to rise
+    scaleOutDuration: 0.4, // seconds for the stones to sink on teardown
+    cameraHeight: 4.2, // camera height → near-frontal view of the vertical rainbow
+    cameraDistance: 15, // distance back from the companion
+    cameraLerp: 3.6, // how smoothly the camera moves / returns
+    // "Dialogue camera": a closer framing on the music character used for any interaction speech
+    // (the prompt + the fail speech). Shares the stones azimuth so prompt↔stones is a clean pull.
+    dialogueCameraHeight: 5.1, // camera height for the close-up speech framing
+    dialogueCameraDistance: 8.5, // distance back from the character during speech
+    dialogueTargetY: 1.2, // look-at height (the character's head) during speech
+    // Pointer (the shared arrow): during playback it snaps to the singing note; during input it
+    // snaps to whichever stone's hover proxy is under the cursor (on touch, to the last tapped
+    // stone), and rests on the last one when nothing is hovered — it never sits between stones.
+    // Size is taken from the walking target arrow (arrowParameters.scale) — it's the same arrow.
+    pointerRadius: 1.75, // arrow distance from the rainbow centre (the half-circle's centre)
+    // See-through: during the game EVERY staged stone acts like the hero — trees in front of it
+    // fade away so the stones stay readable. This is the world radius of each stone's hole.
+    seeThroughEnabled: true,
+    seeThroughRadius: 2.8,
+}
+
+// The six synched backing layers — a FULL melody + a simplified PREVIEW per music companion (see
+// audio/musicTracks.js). All start (looping, muted) on GO; the MusicController only fades each
+// layer's volume. The current TARGET's PREVIEW is heard by distance to the hero; a COLLECTED
+// companion's FULL layer plays softly behind the party; everything is muted during a conversation /
+// mini-game.
+/**
+ * Audio
+ */
+
+export const DEFAULT_MUSIC_PARAMETERS = {
+    hearNear: 0, // distance (hero→target) at/under which the target track reaches nearVolume
+    hearFar: 10, // distance beyond which it fades down to farVolume
+    nearVolume: 1.0, // PREVIEW volume when right next to the companion (the simplified track plays full)
+    farVolume: 0.0, // target preview volume when far (a faint hint of where to head)
+    distanceFalloff: 1.0, // >1 = stays much quieter at range, only swells up close (ease-in on distance)
+    collectedVolume: 0.7, // a collected companion's FULL melody plays behind the hero (lower than preview)
+    creditsVolume: 1.0, // at the credits (party complete) all collected melodies swell to full
+    volumeLerp: 2.1, // volume smoothing (higher = snappier fades)
+}
+
+// Ambient + character + footstep SFX (see ambientSounds.js / AmbientController). Cicadas are the
+// constant bed, owls a random far/close pool, plus per-character one-shots and footsteps.
+export const DEFAULT_AMBIENT_SOUND_PARAMETERS = {
+    cicadaVolume: 0.12, // the ambient bed (the original cicada file)
+    owlVolume: 0.5, // peak volume of each owl hoot in the random pool
+    owlGapMin: 5, // min seconds of silence between owls
+    owlGapMax: 16, // max seconds of silence between owls
+    owlFade: 1.6, // fade in / out time (s) around each owl clip
+    footstepVolume: 0.05,
+    footstepInterval: 0.45, // seconds between steps while moving
+    footstepSpeedThreshold: 2.95, // hero speed (u/s) above which footsteps play (grass pair)
+    mumbleVolume: 0.38, // spiritMumble — companion conversation
+    sadVolume: 0.42, // spiritSad — companion runs away after a missed song
+    sighVolume: 0.9, // intro-dialogue sigh volume
+}
+
+// Procedural cartoon eyes for the hero, drawn directly in the head mesh's fragment shader
+// (shaders/character/fragment.glsl, gated by uDrawEyes) and laid out in the head's second UV set
+// (uv1). CharacterEyes.jsx drives the blink + glance; everything here is shape/colour in uv1 space.
+/**
+ * Eyes
+ */
+
+export const DEFAULT_CHARACTER_EYES_PARAMETERS = {
+    enabled: true,
+    // Eyeball (yellow circle with a big wobbly border), positioned in the head's uv1.
+    eyeColor: '#f2c20a',
+    eyeRadius: 0.26,
+    eyeSpacing: 0.55, // gap between the two eyes
+    eyeOffsetY: -0.1,
+    eyeAspect: 0.8, // 1 = round, <1 squished horizontally
+    eyeNoiseScale: 1.0, // LOW = big chunky border wobbles ("very large noise")
+    eyeNoiseStrength: 0.04,
+    // Pupil (squished ellipse with its own perlin border).
+    pupilColor: '#130d09',
+    pupilWidth: 0.08,
+    pupilHeight: 0.15, // taller than wide = squished
+    pupilOffsetX: 0,
+    pupilOffsetY: 0.03,
+    pupilNoiseScale: 0.8,
+    pupilNoiseStrength: 0.05,
+    edgeSoftness: 0.01, // border softness (normalised)
+    // Blink.
+    blinkInterval: 2.9, // base seconds between blinks
+    blinkIntervalRandom: 3.0, // + up to this many extra seconds (randomised)
+    blinkDuration: 0.21, // seconds for a full close + open
+    // Occasional left/right glance (pupil slides ±amount). Rarer than blinks.
+    pupilLook: true,
+    pupilLookAmount: 0.06, // how far the pupil slides left/right
+    pupilLookInterval: 6.5, // base seconds between glances (well above the blink interval)
+    pupilLookIntervalRandom: 5.0, // + up to this many extra seconds (randomised)
+    pupilLookHold: 1.1, // seconds it holds the glance before returning to centre
+    pupilLookSpeed: 6.0, // glance ease speed (higher = snappier)
+}
+
+// Eyes drawn on the authored eye PLANES of the tree GLBs (one eye pair per plane's [0,1] UV). Each
+// tree shows a random `planesPerTree` of its planes (see ScatteredObjects + the eyePlane shaders).
+export const DEFAULT_TREE_EYES_PARAMETERS = {
+    planesPerTree: 3, // how many of a tree's eye planes show (random subset)
+    // Camera-facing fade: fully transparent once the plane's normal·view drops to facingThreshold
+    // (near 90° / edge-on, and back-facing planes); ramps to opaque over facingFalloff.
+    facingThreshold: 0.55,
+    facingFalloff: 0.38,
+    eyeColor: '#a68bd3',
+    pupilColor: '#120d09',
+    eyeRadius: 0.13, // in the plane's [0,1] UV (0.5 = half the square)
+    eyeSpacing: 0.33,
+    eyeOffsetY: -0.02,
+    eyeAspect: 0.99,
+    eyeNoiseScale: 1.2,
+    eyeNoiseStrength: 0.08,
+    pupilWidth: 0.04,
+    pupilHeight: 0.1,
+    pupilNoiseScale: 1.0,
+    pupilNoiseStrength: 0.1,
+    edgeSoftness: 0.04,
+    blinkInterval: 3.5, // seconds between blinks
+    blinkWidth: 0.06, // fraction of the interval a blink occupies
+    lookInterval: 7.0, // seconds between glances
+    lookHold: 0.3, // fraction of the interval a glance is held
+    lookAmount: 0.05, // how far the pupil slides
+    lookChance: 0.7, // fraction of eye planes that do the occasional glance
+}
+
+// The sheep music companion: animation pacing, world scale, and the scales' jump-driven twist.
+/**
+ * Sheep companions
+ */
+
+export const DEFAULT_SHEEP_PARAMETERS = {
+    modelScale: 0.65, // world scale of the glb (× the per-companion definition.scale)
+    modelYaw: 90, // degrees — correct the model's facing (it exported 90° off)
+    yOffset: 0, // lift off the ground if the model sinks
+    idleTimeScale: 1,
+    runTimeScale: 1,
+    runBlendInSpeed: 8, // idle→run crossfade speed when it starts moving
+    runBlendOutSpeed: 6, // run→idle crossfade speed when it stops
+    swayAxis: 'Z', // local axis the scales twist around (Blender Y often maps to three's Z)
+    swayGain: 10, // motion-bone bounce → scale twist (radians per world unit of vertical move)
+    swayDamp: 1.5, // how quickly the twist follows the bounce (lower = more lag/inertia)
+    swayMax: 0.45, // clamp on the twist angle (radians)
+    scaleColorVariation: 0.12, // slight per-scale colour jitter (0 = all scales the same colour)
+    followLead: 2.4, // trail distance from the hero to the FIRST collected companion
+    followGap: 1.7, // trail distance between consecutive collected companions
+    seeThroughRadius: 1.6, // world radius of the see-through hole props punch around this companion
+    seeThroughHeight: 0.6, // height above the companion's feet to centre the see-through hole
+}
+
+// Sheep stylized material: the shared character painterly defaults (stylizedMaterialDefaults.js —
+// the hero ships with its own tuned values in sceneStyles) + per-companion base colours.
+export const DEFAULT_SHEEP_MATERIAL_PARAMETERS = {
+    ...characterStylizedDefaults,
+    characters: cloneSheepCharacters(),
+}
+
+/**
+ * Textures
+ */
+
+// One-time stylization baked into the paintery brush texture (blur + levels +
+// contrast + posterize) so its small details merge into larger painterly regions,
+// replacing the per-frame Kuwahara abstraction.
+export const DEFAULT_PAINTERY_TEXTURE_PARAMETERS = {
+    enabled: true,
+    textureName: 'paintaryAlpha', // source paintery texture for the terrain bake (ground/grass/border)
+    blur: 2.0,
+    levelsLow: 0.0,
+    levelsHigh: 1.0,
+    contrast: 1.15,
+    posterize: 0,
+}
+
+/**
+ * Game UI
+ */
+
+// Stylized game UI (speech bubble + buttons). Defined per scene style (see gameUiParameters in
+// sceneStyles.js); mirrored here as the global default the store seeds + HMR-merges.
+export const DEFAULT_GAME_UI_PARAMETERS = defaultSceneStyle.gameUiParameters

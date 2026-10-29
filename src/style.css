@@ -1,0 +1,97 @@
+/* Bebas Neue's @font-face lives in index.html (with a preload) so the static pre-loader's "0" and
+   the earliest text already have it — declaring it AGAIN here would silently win the family
+   resolution (last declaration wins) and bypass the preloaded file. One declaration only. */
+
+/* Shared UI design tokens (driven live by the "Desktop" / "Mobile" Leva sections — ui/useUiCssVariables.js
+   writes these on the root). The in-game text is sized in `vmin` so it stays the same PROPORTION of the
+   screen at any resolution; --ui-scale multiplies all of it together. The two radii unify the corner
+   rounding: --ui-radius for panels/buttons (the speech-bubble look), --ui-radius-chip for the little key
+   chips (the control-key look). The *-nudge vars fine-tune vertical glyph centering (Bebas Neue sits high). */
+:root {
+    --ui-scale: 1.3;
+    /* The base UI unit. `vmin` is 1% of the viewport's SHORTER side in CSS px, so the UI scales with the
+       window — but on a 4K display (CSS viewport ~2160 tall vs 1080) `1vmin` doubles and the UI grows
+       too big, and at extreme aspect ratios it collapses. clamp(floor, 1vmin, ceil) bounds it: it scales
+       with the window between the two, never smaller than `floor` (tiny windows) nor bigger than `ceil`
+       (≈ Full-HD's 1vmin = 10.8px → 4K caps at the Full-HD look). Every UI size is
+       `N * var(--ui-vmin) * var(--ui-scale)`. Floor + ceil are set live by Leva. */
+    --ui-size-floor: 6.5px;
+    --ui-size-ceil: 10.8px;
+    --ui-vmin: clamp(var(--ui-size-floor), 1vmin, var(--ui-size-ceil));
+    /* Corners are ALSO sized in vmin·scale (like the boxes) so they keep the same proportion to the
+       frame at any window size — fixed-px corners looked oversized on small windows. */
+    --ui-radius: calc(0.93 * var(--ui-vmin) * var(--ui-scale)); /* panels, bubbles, buttons, counter (≈14px @ Full-HD) */
+    --ui-radius-chip: calc(0.53 * var(--ui-vmin) * var(--ui-scale)); /* small key chips: E, ESC, WASD (≈8px @ Full-HD) */
+    --ui-border: 2px; /* panel border thickness */
+    /* Box dimensions are sized in `vmin * --ui-scale` (just like the text) so the WHOLE UI keeps the
+       same proportion at any resolution — fixed-px boxes were what drifted out of sync on resize.
+       useUiCssVariables overwrites each of these with the live Leva value (same calc form). */
+    --ui-count-size: calc(5.2 * var(--ui-vmin) * var(--ui-scale)); /* countdown digit font-size */
+    --ui-count-box: calc(9.2 * var(--ui-vmin) * var(--ui-scale)); /* countdown square frame side */
+    --ui-count-nudge: 0.04em; /* countdown digit vertical centering (em → scales w/ font) */
+    --ui-chip-size: calc(2.3 * var(--ui-vmin) * var(--ui-scale)); /* key-chip height (E chip = square w&h) */
+    --ui-chip-pad-x: calc(0.6 * var(--ui-vmin) * var(--ui-scale)); /* multi-letter chip (ESC) horizontal padding */
+    --ui-chip-border: 1px; /* key-chip frame thickness */
+    --ui-chip-nudge: 0.05em; /* key-chip glyph vertical centering */
+    --ui-chip-nudge-x: 0em; /* key-chip glyph horizontal centering */
+    --ui-bubble-pad-y: calc(1.7 * var(--ui-vmin) * var(--ui-scale)); /* speech-bubble vertical padding */
+    --ui-bubble-pad-x: calc(2.5 * var(--ui-vmin) * var(--ui-scale)); /* speech-bubble horizontal padding */
+    --ui-count-border: 2px; /* countdown frame thickness (its own knob, not the shared --ui-border) */
+    /* Mini-game "Start" button (size + padding only — no centre offset, it's already centred). */
+    --start-btn-size: calc(2 * var(--ui-vmin) * var(--ui-scale));
+    --start-btn-pad-y: calc(0.7 * var(--ui-vmin) * var(--ui-scale));
+    --start-btn-pad-x: calc(2 * var(--ui-vmin) * var(--ui-scale));
+    /* End-screen "Continue"/"Restart" buttons + how far they sit from the centred title. */
+    --credits-btn-size: calc(2 * var(--ui-vmin) * var(--ui-scale));
+    --credits-btn-pad-y: calc(1.2 * var(--ui-vmin) * var(--ui-scale));
+    --credits-btn-pad-x: calc(4 * var(--ui-vmin) * var(--ui-scale));
+    --credits-btn-offset: 9%;
+    /* Top-left sound HUD (button + vertical volume slider). All vmin·scale so they track the window. */
+    --hud-ctrl: calc(3.8 * var(--ui-vmin) * var(--ui-scale)); /* sound button square = counter height = slider panel width */
+    --vol-frame-h: calc(12 * var(--ui-vmin) * var(--ui-scale)); /* slider panel/frame height */
+    --vol-h: calc(8.8 * var(--ui-vmin) * var(--ui-scale)); /* volume BAR length inside the frame */
+    --vol-track: calc(0.5 * var(--ui-vmin) * var(--ui-scale)); /* volume bar thickness */
+    --vol-thumb: calc(1 * var(--ui-vmin) * var(--ui-scale)); /* volume thumb size */
+    --vol-empty: 0.21; /* opacity of the unfilled part of the bar */
+}
+
+html,
+body,
+#root {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    /* Dark loader colour (NOT the lighter scene clear colour) so nothing flashes light-purple
+       before the canvas/loader paints. */
+    background: var(--sj-loader-background);
+    /* One UI font everywhere (matches the loader / credits). Swap here to retheme all text.
+       Fallbacks are neutral condensed faces — NOT cursive, which mapped to a comic-style font
+       during the (now preloaded, self-hosted) font's brief load window. */
+    font-family: 'Bebas Neue', Impact, sans-serif;
+    /* Touch hygiene — this is a game, not a document. Kills the accidental zooms/selections that
+       break gameplay on touch devices:
+       · touch-action none → no browser pan/pinch/double-tap-zoom gestures anywhere (pointer events
+         still fire; nothing in the game scrolls — the credits auto-roll). Debug caveat: the Leva
+         panel's internal list can't touch-scroll, which is fine (it's #debug-only, mouse-first).
+       · user-select / -webkit-touch-callout none → no text selection, no iOS long-press magnifier
+         loupe or copy callout when holding buttons / the joystick.
+       · tap-highlight transparent → no grey flash box on taps.
+       · overscroll-behavior none → no rubber-band bounce dragging the whole page. */
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior: none;
+}
+
+/* Leva debug panel above the loader curtain (z 10000), so its controls stay usable during the
+   loading/GO screens (tuning the mobile loader ring/camera needs this). Debug-only in practice —
+   Leva doesn't render without #debug. The wrapper only makes a stacking context; the panel inside
+   keeps its own fixed top-right placement. */
+#leva__root {
+    position: fixed;
+    z-index: 10001;
+}

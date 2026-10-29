@@ -1,0 +1,109 @@
+import * as THREE from 'three'
+
+import characterVertexShader from '../shaders/character/vertex.glsl'
+import characterInstancedVertexShader from '../shaders/character/instancedVertex.glsl'
+import characterFragmentShader from '../shaders/character/fragment.glsl'
+import { characterStylizedDefaults } from '../config/stylizedMaterialDefaults.js'
+import { themeMaskUniforms } from '../world/state/themeMask.js'
+import { heroGradeUniforms } from '../world/state/heroGrade.js'
+
+// 1×1 white fallback so materials that don't use a base texture still have a valid sampler bound
+// (avoids "no texture bound" warnings); it's never sampled (uUseBaseTexture stays 0 for them).
+const WHITE_PIXEL = new THREE.DataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1)
+WHITE_PIXEL.needsUpdate = true
+
+function getSettings(settings) {
+    return {
+        ...characterStylizedDefaults,
+        ...settings,
+    }
+}
+
+// options: { instanced } → use the InstancedMesh vertex (the sheep scales); { transparent } →
+// honour the per-frame uFade reveal-edge fade (companions). The hero passes neither, so it keeps
+// the skinned vertex, stays opaque, and leaves uFade = 0 (the fade is a no-op).
+export function createCharacterStylizedMaterial(sourceMaterial, materialSettings, stylizedSettings, painterlyTexture, options = {}) {
+    const settings = getSettings(stylizedSettings)
+    const fallbackColor = sourceMaterial?.color?.getStyle?.() ?? '#ffffff'
+    // The plush hero's colours are baked into COLOR_0. The painterly texture is a light/shade mask
+    // tuned for the old flat-coloured hero; multiplying it over the plush's own paint turns the
+    // lavender hood nearly black at night. Keep vertex-coloured materials at their original palette.
+    const useVertexColor = Boolean(options.vertexColors)
+
+    const material = new THREE.ShaderMaterial({
+        name: `stylized_${sourceMaterial?.name || 'material'}`,
+        vertexShader: options.instanced ? characterInstancedVertexShader : characterVertexShader,
+        fragmentShader: characterFragmentShader,
+        uniforms: {
+            uBaseColor: { value: new THREE.Color(materialSettings?.baseColor ?? fallbackColor) },
+            // Outgoing theme's base colour + the transition mask (masked theme switches).
+            uBaseColorOld: { value: new THREE.Color(materialSettings?.baseColor ?? fallbackColor) },
+            ...themeMaskUniforms,
+            ...heroGradeUniforms,
+            uDebugMode: { value: settings.debugMode },
+            uPainterlyEnabled: { value: useVertexColor ? 0 : settings.painterlyEnabled ? 1 : 0 },
+            uPainterlyTexture: { value: painterlyTexture },
+            uPainterlyScale: { value: settings.painterlyScale },
+            uPainterlyContrast: { value: settings.painterlyContrast },
+            uPainterlyBrightnessVariation: { value: useVertexColor ? 0 : settings.painterlyBrightnessVariation },
+            uFade: { value: 0 },
+            uBackgroundColor: { value: new THREE.Color(options.backgroundColor ?? '#000000') },
+            // Optional base-colour texture (e.g. the sheep mask faces). Gated by uUseBaseTexture so
+            // the hero / body / scales (which pass no texture) keep their flat uBaseColor.
+            uBaseTexture: { value: options.baseTexture ?? WHITE_PIXEL },
+            uUseBaseTexture: { value: options.baseTexture ? 1 : 0 },
+            // Baked COLOR_0 vertex colours (the plush hero). Off by default so the old flat-colour
+            // character / sheep keep their palette.
+            uUseVertexColor: { value: options.vertexColors ? 1 : 0 },
+            // In-shader cartoon eyes (head mesh only). Off by default; CharacterEyes flips uDrawEyes
+            // on the head material + drives the rest each frame when the "Head Shader (uv1)" mode is on.
+            uDrawEyes: { value: 0 },
+            uEyeColor: { value: new THREE.Color('#f2c20a') },
+            uPupilColor: { value: new THREE.Color('#130d09') },
+            uEyeRadius: { value: 0.16 },
+            uEyeSpacing: { value: 0.47 },
+            uEyeOffsetY: { value: 0 },
+            uEyeAspect: { value: 1.0 },
+            uEyeNoiseScale: { value: 1.1 },
+            uEyeNoiseStrength: { value: 0.07 },
+            uPupilWidth: { value: 0.07 },
+            uPupilHeight: { value: 0.1 },
+            uPupilOffsetX: { value: 0 },
+            uPupilOffsetY: { value: 0 },
+            uPupilNoiseScale: { value: 0.9 },
+            uPupilNoiseStrength: { value: 0.13 },
+            uEyeEdgeSoftness: { value: 0.01 },
+            uEyeBlink: { value: 0 },
+        },
+        // Companions render OPAQUE (their reveal-edge fade is a dither dissolve in the fragment, not
+        // alpha) so they depth-sort cleanly with the transparent grass instead of blending through
+        // it. (The hero keeps whatever its source material declared.)
+        transparent: options.transparent ? false : (sourceMaterial?.transparent ?? false),
+        depthWrite: true,
+        opacity: sourceMaterial?.opacity ?? 1,
+        alphaTest: sourceMaterial?.alphaTest ?? 0,
+        side: sourceMaterial?.side ?? THREE.FrontSide,
+        toneMapped: false,
+    })
+
+    return material
+}
+
+// `oldBaseColor` — the outgoing theme's colour for this slot during a masked theme transition
+// (null/undefined = identity, i.e. no visible mix).
+export function updateCharacterStylizedMaterial(material, materialSettings, stylizedSettings, painterlyTexture, oldBaseColor) {
+    const settings = getSettings(stylizedSettings)
+    const uniforms = material.uniforms
+
+    uniforms.uBaseColor.value.set(materialSettings.baseColor)
+    uniforms.uBaseColorOld.value.set(oldBaseColor ?? materialSettings.baseColor)
+    uniforms.uDebugMode.value = settings.debugMode
+    uniforms.uPainterlyTexture.value = painterlyTexture
+    uniforms.uPainterlyScale.value = settings.painterlyScale
+    uniforms.uPainterlyContrast.value = settings.painterlyContrast
+    // Vertex-coloured characters use their baked palette as the final colour; the painterly mask
+    // (built for flat-colour characters) would multiply it down into the dark.
+    const useVertexColor = uniforms.uUseVertexColor.value === 1
+    uniforms.uPainterlyEnabled.value = useVertexColor ? 0 : settings.painterlyEnabled ? 1 : 0
+    uniforms.uPainterlyBrightnessVariation.value = useVertexColor ? 0 : settings.painterlyBrightnessVariation
+}
