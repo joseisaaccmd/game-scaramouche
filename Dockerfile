@@ -7,6 +7,9 @@ RUN npm ci
 
 FROM base AS builder
 WORKDIR /app
+# The nginx/Docker deploy is served from /utanomori/. Vercel builds without this arg → base '/'.
+ARG VITE_BASE=/utanomori/
+ENV VITE_BASE=$VITE_BASE
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 

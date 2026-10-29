@@ -33,7 +33,7 @@
              the fallbacks below are neutral, not cursive. This is the ONLY @font-face for the family
              (a second one in style.css would win the family resolution and bypass the preload).
              NOTE the two different URL forms: vite REBASES root-absolute URLs in tag attributes
-             (href → /utanomori/fonts/…) but does NOT touch inline <style> css, which therefore
+             (href → <base>/fonts/…) but does NOT touch inline <style> css, which therefore
              needs the explicit %BASE_URL% placeholder. Using %BASE_URL% in the href would double
              the base. -->
         <link rel="preload" href="/fonts/bebas-neue-v9-latin-regular.woff" as="font" type="font/woff" crossorigin />

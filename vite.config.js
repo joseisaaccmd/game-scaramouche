@@ -24,7 +24,9 @@ export default {
             include: ['**/*.glsl'],
         }),
     ],
-    base: '/utanomori/', // served at mesq.me/utanomori/ — all asset URLs are prefixed with this
+    // Default '/' so root hosts (Vercel, local preview) work out of the box. The Docker/nginx
+    // deploy sets VITE_BASE=/utanomori/ at build time to keep serving from mesq.me/utanomori/.
+    base: process.env.VITE_BASE || '/',
     assetsInclude: ['**/*.glb', '**/*.gltf'],
     server: {
         host: true, // Open to local network and display URL

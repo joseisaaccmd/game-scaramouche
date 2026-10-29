@@ -21,8 +21,11 @@ npm install
 npm run dev      # vite dev server
 npm test         # node --test
 npm run build    # production build into dist/
-npm run preview  # serve dist/ — needed because the build is based at /utanomori/
+npm run preview  # serve dist/ (builds with base '/' by default)
 ```
+
+Builds default to base `/` so root hosts like Vercel work directly. The Docker/nginx deploy sets
+`VITE_BASE=/utanomori/` at build time to keep serving from `mesq.me/utanomori/`.
 
 `#debug` in the URL opens the Leva panel.
 
